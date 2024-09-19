@@ -1,0 +1,23 @@
+name: Delete Kubernetes Cluster
+
+on:
+  workflow_dispatch:
+
+env:
+    CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+
+jobs:
+  start-cluster:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      - name: Authenticate with DigitalOcean
+        run: doctl auth init -t ${{ secrets.DO_API_TOKEN }}
+
+      - name: Create Kubernetes Cluster
+        run: |
+          doctl kubernetes cluster delete ${{ env.CLUSTER_NAME }} --force
