@@ -18,7 +18,7 @@ on:
       organizationIdentifier:
         description: 'Organization Registry Identifier (concatenated with hubIdentifier and image name)'
         required: true
-        default: 'timegift'
+        default: 'assistos'
         type: string
       timegiftTag:
         description: 'Timegift version'
