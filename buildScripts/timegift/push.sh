@@ -1,0 +1,2 @@
+. values.sh
+docker push "$HUB_IDENTIFIER/$TIMEGIFT_IMAGE_NAME:$VERSION"
