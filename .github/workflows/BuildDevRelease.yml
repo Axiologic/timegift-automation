@@ -65,7 +65,7 @@ jobs:
           NODE_ALPINE_BASE_IMAGE='${{ inputs.nodeBaseImage }}' 
           HUB_IDENTIFIER='${{ inputs.hubIdentifier }}'  
           TIMEGIFT_NAME='timegift'
-          TIMEGIFT_REPO='https://github.com/Axiologic/timegift.git'
+          TIMEGIFT_REPO='https://${{ secrets.GIT_TOKEN }}@github.com/Axiologic/timegift.git'
           TIMEGIFT_IMAGE_NAME='${{ inputs.organizationIdentifier }}/timegift'
           VERSION='${{ inputs.timegiftTag }}-rc${{ inputs.timegiftRC }}'
           EOF
