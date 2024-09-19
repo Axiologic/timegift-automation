@@ -1,0 +1,84 @@
+name: Deploy Cloudflared
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up kubectl
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.25.0'  # Adjust this based on your Kubernetes version
+
+      # Step 3: Set up DigitalOcean authentication
+      - name: Authenticate with DigitalOcean
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+
+      # Step 4: Set up KUBECONFIG
+      - name: Connect to Kubernetes cluster
+        run: doctl kubernetes cluster kubeconfig save ${{ vars.CLUSTER_NAME }}
+
+      # Step 5: Create the deployment.yaml file using cat
+      - name: Create deployment.yaml
+        run: |
+          cat <<EOF > deployment.yaml
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            labels:
+              app: cloudflared
+            name: cloudflared-deployment
+            namespace: default
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                pod: cloudflared
+            template:
+              metadata:
+                creationTimestamp: null
+                labels:
+                  pod: cloudflared
+              spec:
+                containers:
+                  - command:
+                      - cloudflared
+                      - tunnel
+                      - --loglevel
+                      - debug
+                      - --metrics
+                      - 0.0.0.0:2000
+                      - run
+                    args:
+                      - --token
+                      - ${{ secrets.CLOUDFLARED_TOKEN }}
+                    image: cloudflare/cloudflared:latest
+                    name: cloudflared
+                    livenessProbe:
+                      httpGet:
+                        path: /ready
+                        port: 2000
+                      failureThreshold: 1
+                      initialDelaySeconds: 10
+                      periodSeconds: 10
+          EOF
+
+      # Step 6: Apply the Kubernetes deployment
+      - name: Apply Kubernetes Deployment
+        run: |
+          kubectl apply -f deployment.yaml
+
+      # Step 7: Verify the deployment
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/cloudflared-deployment
