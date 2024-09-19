@@ -1,0 +1,104 @@
+name: Build DEV Release
+
+# Controls when the workflow will run
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      nodeBaseImage:
+        description: 'node alpine docker image  (e.g. node:x.y.z-alpine)'
+        required: true
+        default: 'node:20.15.0-alpine'
+        type: string
+      hubIdentifier:
+        description: 'docker repo identifier'
+        required: true
+        default: 'docker.io'
+        type: string
+      organizationIdentifier:
+        description: 'Organization Registry Identifier (concatenated with hubIdentifier and image name)'
+        required: true
+        default: 'timegift'
+        type: string
+      timegiftTag:
+        description: 'Timegift version'
+        required: true
+        default: '1.0.0'
+        type: string
+      timegiftRC:
+        description: 'Timegift Release Candidate number'
+        required: true
+        default: '1'
+        type: string
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read  # This is required for actions/checkout
+
+jobs:
+  # This workflow contains a single job called "build"
+  build-dev-release:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-22.04
+    environment: production
+
+    defaults:
+      run:
+        shell: bash
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Update Timegift env values
+        run: |
+          cd buildScripts/timegift  
+          echo "" > values.sh
+          cat > values.sh << EOF
+          NODE_ALPINE_BASE_IMAGE='${{ inputs.nodeBaseImage }}' 
+          HUB_IDENTIFIER='${{ inputs.hubIdentifier }}'  
+          TIMEGIFT_NAME='timegift'
+          TIMEGIFT_REPO='https://github.com/Axiologic/timegift.git'
+          TIMEGIFT_IMAGE_NAME='${{ inputs.organizationIdentifier }}/timegift'
+          VERSION='${{ inputs.timegiftTag }}-rc${{ inputs.timegiftRC }}'
+          EOF
+
+      - name: Run AssistOS build script
+        run: |
+          cd buildScripts/timegift
+          ./build.sh
+
+      - name: List images
+        run: |
+          docker image ls
+
+      - name: Tag AssistOS image
+        run: |
+          cd buildScripts/timegift
+          ./tag.sh
+      - name: List images
+        run: |
+          docker image ls
+
+      - name: Publishing the images
+        run: |
+          cd buildScripts/timegift
+          ./push.sh
+
+      - name: 'Add information to Summary'
+        run: |
+          cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+          | Inputs                 | Value                                                |
+          | ---------------------- | -----------------------------------------------------|
+          | nodeBaseImage          | ${{ inputs.nodeBaseImage }}                          |
+          | hubIdentifier          | ${{ inputs.hubIdentifier }}                          |
+          | organizationIdentifier | ${{ inputs.organizationIdentifier }}                 |
+          | timegiftTag            | ${{ inputs.timegiftTag }}-rc${{ inputs.timegiftRC }} |
+          EOF
